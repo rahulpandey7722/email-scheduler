@@ -1,0 +1,42 @@
+services:
+  redis:
+    image: redis:7-alpine
+    # Enables Redis Append Only File (AOF) log persistence for zero lost jobs
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: email_scheduler
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+
+  api:
+    build: .
+    command: npm run start:api
+    env_file: .env
+    ports:
+      - "4000:4000"
+    depends_on:
+      - redis
+      - postgres
+
+  worker:
+    build: .
+    command: npm run start:worker
+    env_file: .env
+    depends_on:
+      - redis
+      - postgres
+
+volumes:
+  redis-data:
+  pg-data:

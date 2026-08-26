@@ -1,0 +1,78 @@
+// Prisma Schema definition for Email Scheduler application
+// PostgreSQL Provider for Cloud Production Deployment (Render / Neon / Supabase)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Lifecycle states of a scheduled email transmission
+enum EmailStatus {
+  PENDING      // Created in DB, pending queue processing
+  QUEUED       // Enqueued into BullMQ delayed job queue
+  SENDING      // Worker picked up job and is currently firing SMTP call
+  SENT         // Dispatch confirmed by SMTP server
+  FAILED       // Final failed state after exhausting retries
+  RESCHEDULED  // Deferred to next window due to rate limits
+}
+
+// Account holder entity authenticated via Google OAuth
+model User {
+  id        String   @id @default(uuid())
+  googleId  String   @unique
+  email     String   @unique
+  name      String
+  avatarUrl String?
+  createdAt DateTime @default(now())
+
+  // One user can schedule multiple email batches
+  emails    Email[]
+}
+
+// Scheduled email record entity (acting as single source of truth)
+model Email {
+  id             String      @id @default(uuid())
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String
+
+  subject        String
+  body           String
+
+  // Dispatch parameters
+  scheduledFor   DateTime
+  delayMs        Int         @default(2000)   // Minimum delay between emails in a campaign batch
+  hourlyLimit    Int         @default(200)    // Max emails allowed per hour for this job owner
+
+  // Unique hash derived from (userId + recipients + subject + scheduledTime)
+  // Ensures database level anti-duplication even if cache is cleared
+  idempotencyKey String      @unique
+
+  status         EmailStatus @default(PENDING)
+  attempts       Int         @default(0)
+  lastError      String?
+
+  bullJobId      String?     // Associated background job identifier
+  sentAt         DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  recipients     EmailRecipient[]
+
+  // Fast filtering for user dashboards and worker queues
+  @@index([userId, status])
+  @@index([scheduledFor])
+}
+
+// Individual email addresses targeted in a schedule batch
+model EmailRecipient {
+  id      String @id @default(uuid())
+  email   Email  @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  emailId String
+  address String
+
+  @@index([emailId])
+}
