@@ -10,7 +10,7 @@ Designed for zero lost jobs on container restart, dual-layer idempotency, slidin
 
 | Component | Cloud Platform | Live Deployment URL |
 | :--- | :--- | :--- |
-| **Frontend Web UI** | **Vercel** | [https://email-scheduler-ui.vercel.app](https://vercel.com) *(Import `frontend/` on Vercel)* |
+| **Frontend Web UI** | **Vercel** | [https://email-scheduler-ui.vercel.app](https://email-scheduler-pied.vercel.app/) |
 | **Backend API** | **Render** | [https://email-scheduler-api.onrender.com](https://email-scheduler-api.onrender.com/health) |
 | **Email Queue Worker** | **Render** | `email-scheduler-worker` *(Render Background Worker)* |
 | **PostgreSQL Database** | **Render Postgres** | `email-scheduler-db` *(Render PostgreSQL Service)* |
