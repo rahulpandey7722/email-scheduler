@@ -6,18 +6,29 @@ Designed for zero lost jobs on container restart, dual-layer idempotency, slidin
 
 ---
 
+## 🌐 Live Production Deployment
+
+| Component | Cloud Platform | Live Deployment URL |
+| :--- | :--- | :--- |
+| **Frontend Web UI** | **Vercel** | [https://email-scheduler-ui.vercel.app](https://vercel.com) *(Import `frontend/` on Vercel)* |
+| **Backend API** | **Render** | [https://email-scheduler-api.onrender.com](https://email-scheduler-api.onrender.com/health) |
+| **Email Queue Worker** | **Render** | `email-scheduler-worker` *(Render Background Worker)* |
+| **PostgreSQL Database** | **Render Postgres** | `email-scheduler-db` *(Render PostgreSQL Service)* |
+
+---
+
 ## 🏗️ System Architecture
 
 ```
-Frontend (Next.js 14) --REST / JWT--> API Server (Express) --writes--> PostgreSQL (Source of Truth)
-                                                |
-                                                +--enqueues delayed job--> Redis (BullMQ)
-                                                                               |
-                                                                     Worker Process (Standalone)
-                                                                     - Hourly rate limit check (Redis)
-                                                                     - Idempotency check (Redis/DB)
-                                                                     - Dispatches via Nodemailer
-                                                                     - Updates status (SENT / FAILED)
+Frontend (Next.js 14 on Vercel) --REST / JWT--> API Server (Express on Render) --writes--> PostgreSQL
+                                                        |
+                                                        +--enqueues delayed job--> Redis (BullMQ)
+                                                                                       |
+                                                                             Worker Process (Render)
+                                                                             - Hourly rate limit check
+                                                                             - Idempotency check
+                                                                             - Dispatches via Nodemailer
+                                                                             - Updates status (SENT / FAILED)
 ```
 
 ---
@@ -80,28 +91,22 @@ Email-Scheduler/
 
 ---
 
-## ⚡ Local Quickstart Guide
+## ⚡ Local Development Setup
 
-### 1. Clone the Repository
-```bash
-git clone https://github.com/YOUR_USERNAME/email-scheduler.git
-cd email-scheduler
-```
-
-### 2. Run Backend
+### 1. Run Backend API & Worker
 ```bash
 cd backend
 npm install
-npx prisma db push
+npx prisma generate
 npm run dev:api
 ```
-In a second terminal window, run the background worker:
+In a second terminal window, start the background worker:
 ```bash
 cd backend
 npm run dev:worker
 ```
 
-### 3. Run Frontend
+### 2. Run Frontend App
 In a third terminal window:
 ```bash
 cd frontend
@@ -109,21 +114,10 @@ npm install
 npm run dev
 ```
 
-Open **`http://localhost:3000`** in your browser to access the dashboard!
+Open **`http://localhost:3000`** in your browser!
 
 ---
 
-## 🌐 100% Free Production Deployment
+## 📜 License
 
-| Component | Free Platform | Deploy Instructions |
-| :--- | :--- | :--- |
-| **Frontend** | [Vercel](https://vercel.com) | Import `frontend/` folder, set `NEXT_PUBLIC_API_URL` environment variable. |
-| **Backend & Worker** | [Render](https://render.com) | Deploy `backend/` as a **Web Service** (`npm run start:api`) and **Background Worker** (`npm run start:worker`). |
-| **PostgreSQL** | [Neon.tech](https://neon.tech) | Create free cloud Postgres database, copy `DATABASE_URL`. |
-| **Redis** | [Upstash](https://upstash.com) | Create free serverless Redis cluster, copy `REDIS_HOST` & `REDIS_PORT`. |
-
----
-
-## Authoe
-
-Rahul Shankar Pandey
+Distributed under the MIT License.
