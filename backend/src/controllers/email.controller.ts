@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { emailService } from "../services/email.service";
+import { recoverStuckOrUnqueuedEmails } from "../services/recovery.service";
+import { getEtherealAccountInfo } from "../config/mailer";
 
 // Zod schema validation for creation payload
 export const createEmailSchema = z.object({
@@ -55,6 +57,45 @@ export const emailController = {
     try {
       const emails = await emailService.getSentEmails(req.user!.id);
       return res.json(emails);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Triggers queue recovery reconciliation for interrupted or queued emails after server restart/crash
+   */
+  async triggerRecovery(_req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await recoverStuckOrUnqueuedEmails();
+      return res.json({
+        message: "Email queue crash recovery completed successfully",
+        ...result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * Returns current Ethereal Email sandbox test credentials and webmail URL
+   */
+  async getEtherealInfo(_req: Request, res: Response, next: NextFunction) {
+    try {
+      const etherealAccount = await getEtherealAccountInfo();
+      if (!etherealAccount) {
+        return res.json({
+          enabled: false,
+          message: "Standard SMTP configuration active",
+        });
+      }
+
+      return res.json({
+        enabled: true,
+        user: etherealAccount.user,
+        pass: etherealAccount.pass,
+        webmail: etherealAccount.web || "https://ethereal.email",
+      });
     } catch (error) {
       next(error);
     }

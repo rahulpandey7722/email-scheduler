@@ -20,6 +20,7 @@ export interface ScheduledEmailRecord {
   sentAt: string | null;
   attempts: number;
   lastError: string | null;
+  etherealUrl?: string | null;
   delayMs: number;
   hourlyLimit: number;
   createdAt: string;

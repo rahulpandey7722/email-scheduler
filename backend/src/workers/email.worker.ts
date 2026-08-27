@@ -69,7 +69,7 @@ export async function processEmailDispatchJob(job: Job<DispatchEmailJobPayload>)
   try {
     const recipientAddresses = emailRecord.recipients.map((r) => r.address);
 
-    await sendEmail({
+    const { previewUrl } = await sendEmail({
       to: recipientAddresses,
       subject: emailRecord.subject,
       body: emailRecord.body,
@@ -84,10 +84,11 @@ export async function processEmailDispatchJob(job: Job<DispatchEmailJobPayload>)
       data: {
         status: "SENT",
         sentAt: new Date(),
+        etherealUrl: typeof previewUrl === "string" ? previewUrl : null,
       },
     });
 
-    logger.info({ emailId }, "Email successfully delivered and recorded");
+    logger.info({ emailId, previewUrl: previewUrl || undefined }, "Email successfully delivered and recorded");
   } catch (sendErr: any) {
     const errorMessage = sendErr.message ? sendErr.message.substring(0, 500) : "Unknown transport error";
     logger.error({ emailId, error: errorMessage }, "SMTP dispatch failure");

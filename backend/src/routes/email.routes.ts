@@ -17,4 +17,10 @@ emailRouter.get("/scheduled", emailController.getScheduled);
 // GET /api/emails/sent - Retrieve delivered email history
 emailRouter.get("/sent", emailController.getSent);
 
+// POST /api/emails/recover - Re-enqueue stuck/queued emails after server crash or restart
+emailRouter.post("/recover", emailController.triggerRecovery);
+
+// GET /api/emails/ethereal-info - Fetch active Ethereal sandbox test account credentials & webmail link
+emailRouter.get("/ethereal-info", emailController.getEtherealInfo);
+
 export default emailRouter;
