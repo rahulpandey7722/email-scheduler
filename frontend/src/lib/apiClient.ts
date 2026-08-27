@@ -1,4 +1,5 @@
 import { getSession } from "next-auth/react";
+import { mutate } from "swr";
 
 const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 const API_BASE_URL = rawApiUrl.replace(/\/+$/, "");
@@ -73,6 +74,10 @@ function saveLocalStorageEmail(item: any): void {
     // Prevent duplicate items
     const filtered = existing.filter((e) => e.id !== item.id);
     localStorage.setItem("email_scheduler_local_items", JSON.stringify([item, ...filtered]));
+
+    // Trigger instant SWR cache mutation for all active dashboard hooks
+    mutate("/api/emails/scheduled");
+    mutate("/api/emails/sent");
   } catch (err) {
     console.warn("Failed to persist email in localStorage", err);
   }

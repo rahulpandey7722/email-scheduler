@@ -7,15 +7,15 @@ export function useSentEmails() {
     "/api/emails/sent",
     (path: string) => apiClient.get<ScheduledEmailRecord[]>(path),
     {
-      refreshInterval: 15000,
+      refreshInterval: 10000,
       revalidateOnFocus: true,
-      fallbackData: [],
+      revalidateOnMount: true,
     }
   );
 
   return {
     sentEmails: data ?? [],
-    isLoading: isLoading && data === undefined,
+    isLoading: isLoading && !data,
     error,
     refresh: mutate,
   };

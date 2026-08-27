@@ -7,15 +7,15 @@ export function useScheduledEmails() {
     "/api/emails/scheduled",
     (path: string) => apiClient.get<ScheduledEmailRecord[]>(path),
     {
-      refreshInterval: 10000,
+      refreshInterval: 5000,
       revalidateOnFocus: true,
-      fallbackData: [],
+      revalidateOnMount: true,
     }
   );
 
   return {
     scheduledEmails: data ?? [],
-    isLoading: isLoading && data === undefined,
+    isLoading: isLoading && !data,
     error,
     refresh: mutate,
   };
