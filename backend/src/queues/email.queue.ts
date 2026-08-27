@@ -27,7 +27,8 @@ export async function scheduleEmailJob(emailId: string, scheduledFor: Date) {
 
   if (getIsRedisConnected()) {
     try {
-      const job = await emailQueue.add(
+      // 2000ms strict timeout safeguard against hanging queue connections
+      const enqueuePromise = emailQueue.add(
         SEND_EMAIL_TASK,
         { emailId },
         {
@@ -35,9 +36,15 @@ export async function scheduleEmailJob(emailId: string, scheduledFor: Date) {
           jobId: emailId,
         }
       );
+
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("BullMQ enqueue operation timed out")), 2000)
+      );
+
+      const job = await Promise.race([enqueuePromise, timeoutPromise]);
       return job.id;
-    } catch (err) {
-      logger.warn({ emailId }, "Redis BullMQ queue error, falling back to in-memory scheduler");
+    } catch (err: any) {
+      logger.warn({ emailId, error: err.message }, "Redis BullMQ queue error/timeout, falling back to in-memory scheduler");
     }
   }
 

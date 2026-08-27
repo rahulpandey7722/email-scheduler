@@ -32,13 +32,13 @@ const handler = NextAuth({
       if (account?.id_token) {
         token.idToken = account.id_token;
       } else if (user) {
-        // Fallback token for demo authentication
-        token.idToken = "demo_token_user_123";
+        // Fallback token for demo authentication incorporating email
+        token.idToken = `demo_token_${user.email || "demo@example.com"}`;
       }
       return token;
     },
     async session({ session, token }) {
-      (session as any).idToken = token.idToken || "demo_token_user_123";
+      (session as any).idToken = token.idToken || "demo_token_demo@example.com";
       return session;
     },
   },

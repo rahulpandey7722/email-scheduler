@@ -16,10 +16,16 @@ authRouter.post("/google", async (req, res, next) => {
   try {
     const { idToken } = req.body;
 
-    let googleId = "demo_google_id_123";
     let email = "demo@example.com";
-    let name = "Demo User";
-    let avatarUrl: string | undefined = "https://api.dicebear.com/7.x/avataaars/svg?seed=DemoUser";
+    if (idToken && typeof idToken === "string" && idToken.startsWith("demo_token_")) {
+      const extractedEmail = idToken.replace("demo_token_", "").trim();
+      if (extractedEmail && extractedEmail.includes("@")) {
+        email = extractedEmail;
+      }
+    }
+    let googleId = `demo_google_id_${email}`;
+    let name = email === "demo@example.com" ? "Demo User" : email.split("@")[0];
+    let avatarUrl: string | undefined = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`;
 
     // If a valid Google ID token is provided and Google Client ID is configured, verify with Google
     if (

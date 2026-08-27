@@ -1,24 +1,21 @@
 import { getSession } from "next-auth/react";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const rawApiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_BASE_URL = rawApiUrl.replace(/\/+$/, "");
 
 let cachedBackendToken: string | null = null;
 let tokenExpiryTimestamp: number = 0;
+let pendingTokenPromise: Promise<string> | null = null;
 
 /**
- * Exchanges Google OAuth id_token for API-scoped JWT token
+ * Internal implementation to fetch backend JWT token
  */
-async function fetchBackendJwtToken(): Promise<string> {
+async function performBackendJwtExchange(): Promise<string> {
   const session = await getSession();
   const idToken = (session as any)?.idToken;
 
   if (!idToken) {
     throw new Error("User session unauthenticated");
-  }
-
-  // Reuse cached JWT if still valid
-  if (cachedBackendToken && Date.now() < tokenExpiryTimestamp) {
-    return cachedBackendToken;
   }
 
   const response = await fetch(`${API_BASE_URL}/api/auth/google`, {
@@ -37,6 +34,25 @@ async function fetchBackendJwtToken(): Promise<string> {
   tokenExpiryTimestamp = Date.now() + 3600 * 1000;
 
   return cachedBackendToken!;
+}
+
+/**
+ * Exchanges Google OAuth id_token for API-scoped JWT token with deduplication
+ */
+async function fetchBackendJwtToken(): Promise<string> {
+  // Reuse cached JWT if still valid
+  if (cachedBackendToken && Date.now() < tokenExpiryTimestamp) {
+    return cachedBackendToken;
+  }
+
+  // Deduplicate concurrent token requests
+  if (!pendingTokenPromise) {
+    pendingTokenPromise = performBackendJwtExchange().finally(() => {
+      pendingTokenPromise = null;
+    });
+  }
+
+  return pendingTokenPromise;
 }
 
 export const apiClient = {

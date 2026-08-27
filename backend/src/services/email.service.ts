@@ -37,20 +37,21 @@ export const emailService = {
       delayMs: input.delayMs ?? env.MIN_DELAY_MS,
       hourlyLimit: input.hourlyLimit ?? env.DEFAULT_HOURLY_LIMIT,
       idempotencyKey,
-      status: "PENDING",
+      status: "QUEUED",
       recipients: {
         create: input.recipients.map((addr) => ({ address: addr })),
       },
     });
 
-    // Enqueue delayed job into BullMQ
+    // Enqueue delayed job into BullMQ or in-memory timer
     const bullJobId = await scheduleEmailJob(emailRecord.id, input.scheduledFor);
 
-    // Update email record with BullMQ job ID reference
-    await emailRepository.updateStatus(emailRecord.id, {
-      bullJobId: bullJobId ?? emailRecord.id,
-      status: "QUEUED",
-    });
+    // Record BullMQ job ID reference
+    if (bullJobId) {
+      await emailRepository.updateStatus(emailRecord.id, {
+        bullJobId,
+      });
+    }
 
     return emailRepository.findById(emailRecord.id);
   },

@@ -9,6 +9,7 @@ export const connection = new IORedis({
   port: env.REDIS_PORT,
   maxRetriesPerRequest: null,
   enableReadyCheck: false,
+  enableOfflineQueue: false, // Prevent commands from buffering indefinitely when Redis is offline
   lazyConnect: true, // Don't crash immediately on boot if Redis is offline
   retryStrategy(times) {
     // Retry periodically without spamming logs
@@ -17,20 +18,20 @@ export const connection = new IORedis({
 });
 
 connection.on("connect", () => {
-  isRedisConnected = true;
+  isRedisConnected = connection.status === "ready";
 });
 
 connection.on("ready", () => {
   isRedisConnected = true;
 });
 
-connection.on("error", (error: Error) => {
+connection.on("error", (_error: Error) => {
   isRedisConnected = false;
   // Silent warning for graceful fallback when Docker / Redis is not running
 });
 
 export function getIsRedisConnected(): boolean {
-  return isRedisConnected;
+  return isRedisConnected && connection.status === "ready";
 }
 
 // Attempt initial non-blocking connection
