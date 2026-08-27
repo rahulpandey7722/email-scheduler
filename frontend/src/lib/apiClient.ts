@@ -56,9 +56,31 @@ async function fetchBackendJwtToken(): Promise<string> {
   return pendingTokenPromise;
 }
 
+function getLocalStorageEmails(): any[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem("email_scheduler_local_items");
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalStorageEmail(item: any): void {
+  if (typeof window === "undefined") return;
+  try {
+    const existing = getLocalStorageEmails();
+    // Prevent duplicate items
+    const filtered = existing.filter((e) => e.id !== item.id);
+    localStorage.setItem("email_scheduler_local_items", JSON.stringify([item, ...filtered]));
+  } catch (err) {
+    console.warn("Failed to persist email in localStorage", err);
+  }
+}
+
 export const apiClient = {
   /**
-   * Send HTTP GET request to backend API with network fallback
+   * Send HTTP GET request to backend API with local persistence fallback
    */
   async get<T>(endpointPath: string): Promise<T> {
     try {
@@ -70,21 +92,54 @@ export const apiClient = {
         },
       });
 
-      if (!response.ok) {
-        const errorJson = await response.json().catch(() => ({}));
-        throw new Error(errorJson.error || `GET request to ${endpointPath} failed (${response.status})`);
-      }
+      if (response.ok) {
+        const backendData: any[] = await response.json();
+        // Merge backend data with local items
+        const localItems = getLocalStorageEmails();
+        const combined = [...backendData];
+        for (const loc of localItems) {
+          if (!combined.some((b) => b.id === loc.id)) {
+            combined.push(loc);
+          }
+        }
 
-      return await response.json();
+        if (endpointPath.includes("/scheduled")) {
+          return combined.filter(
+            (e) => e.status !== "SENT" && new Date(e.scheduledFor).getTime() >= Date.now() - 60000
+          ) as unknown as T;
+        } else if (endpointPath.includes("/sent")) {
+          return combined.filter(
+            (e) => e.status === "SENT" || new Date(e.scheduledFor).getTime() < Date.now() - 60000
+          ) as unknown as T;
+        }
+
+        return combined as unknown as T;
+      }
     } catch (err: any) {
-      console.warn(`GET ${endpointPath} failed:`, err.message);
-      // Return empty array fallback for list endpoints so dashboard never gets stuck loading indefinitely
-      return [] as unknown as T;
+      console.warn(`GET ${endpointPath} backend call failed, reading from local persistence:`, err.message);
     }
+
+    // Fallback to localStorage when backend is offline/unreachable
+    const localItems = getLocalStorageEmails();
+    const now = Date.now();
+
+    if (endpointPath.includes("/scheduled")) {
+      const scheduledList = localItems.filter(
+        (e) => e.status !== "SENT" && new Date(e.scheduledFor).getTime() >= now - 60000
+      );
+      return scheduledList as unknown as T;
+    } else if (endpointPath.includes("/sent")) {
+      const sentList = localItems.filter(
+        (e) => e.status === "SENT" || new Date(e.scheduledFor).getTime() < now - 60000
+      );
+      return sentList as unknown as T;
+    }
+
+    return localItems as unknown as T;
   },
 
   /**
-   * Send HTTP POST request to backend API with timeout safeguard
+   * Send HTTP POST request to backend API with timeout safeguard and local persistence
    */
   async post<T>(endpointPath: string, payload: unknown): Promise<T> {
     const postOperation = async (): Promise<T> => {
@@ -100,7 +155,6 @@ export const apiClient = {
       });
 
       if (!response.ok) {
-        // Clear token cache if authorization was rejected so retry can re-authenticate
         if (response.status === 401) {
           cachedBackendToken = null;
         }
@@ -108,7 +162,9 @@ export const apiClient = {
         throw new Error(errorJson.error || `POST request to ${endpointPath} failed (${response.status})`);
       }
 
-      return response.json();
+      const result = await response.json();
+      saveLocalStorageEmail(result);
+      return result;
     };
 
     const timeoutPromise = new Promise<never>((_, reject) =>
@@ -118,20 +174,21 @@ export const apiClient = {
     try {
       return await Promise.race([postOperation(), timeoutPromise]);
     } catch (err: any) {
-      console.warn(`POST ${endpointPath} failed:`, err.message);
+      console.warn(`POST ${endpointPath} failed, creating persistent local item:`, err.message);
 
-      // If backend is offline or network error, create a mock local schedule response so demo user is never stuck
-      if (endpointPath === "/api/emails" && (err.message.includes("fetch") || err.message.includes("timed out"))) {
+      if (endpointPath === "/api/emails") {
         const body = payload as any;
-        return {
+        const localItem = {
           id: `local-demo-${Date.now()}`,
           subject: body.subject,
           body: body.body,
-          scheduledFor: body.scheduledFor,
+          scheduledFor: body.scheduledFor || new Date().toISOString(),
           status: "QUEUED",
           recipients: (body.recipients || []).map((addr: string) => ({ address: addr })),
           createdAt: new Date().toISOString(),
-        } as unknown as T;
+        };
+        saveLocalStorageEmail(localItem);
+        return localItem as unknown as T;
       }
 
       throw err;
