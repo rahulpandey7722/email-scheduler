@@ -1,22 +1,31 @@
-import useSWR from "swr";
-import { apiClient } from "@/lib/apiClient";
+import { useState, useEffect } from "react";
+import { emailStore } from "@/lib/emailStore";
 import { ScheduledEmailRecord } from "@/lib/types";
 
 export function useScheduledEmails() {
-  const { data, error, isLoading, mutate } = useSWR<ScheduledEmailRecord[]>(
-    "/api/emails/scheduled",
-    (path: string) => apiClient.get<ScheduledEmailRecord[]>(path),
-    {
-      refreshInterval: 5000,
-      revalidateOnFocus: true,
-      revalidateOnMount: true,
-    }
+  const [scheduledEmails, setScheduledEmails] = useState<ScheduledEmailRecord[]>(
+    () => emailStore.getScheduled()
   );
 
+  useEffect(() => {
+    // Sync initial state
+    setScheduledEmails(emailStore.getScheduled());
+
+    // Subscribe to instant store updates
+    const unsubscribe = emailStore.subscribe(() => {
+      setScheduledEmails(emailStore.getScheduled());
+    });
+
+    // Trigger background sync with backend
+    emailStore.fetchFromBackend();
+
+    return unsubscribe;
+  }, []);
+
   return {
-    scheduledEmails: data ?? [],
-    isLoading: isLoading && !data,
-    error,
-    refresh: mutate,
+    scheduledEmails,
+    isLoading: false,
+    error: undefined,
+    refresh: () => emailStore.fetchFromBackend(),
   };
 }

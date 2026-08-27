@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { CsvUploader } from "./CsvUploader";
-import { apiClient } from "@/lib/apiClient";
+import { emailStore } from "@/lib/emailStore";
 import { Send, Clock, AlertCircle, Sparkles } from "lucide-react";
 
 interface ComposeFormProps {
@@ -38,19 +38,21 @@ export function ComposeForm({ onSuccessScheduled }: ComposeFormProps) {
       return;
     }
 
-    if (!scheduledFor) {
-      setErrorMessage("Please select a target scheduled dispatch date and time.");
+    if (!scheduledFor || isNaN(new Date(scheduledFor).getTime())) {
+      setErrorMessage("Please select a valid target scheduled dispatch date and time.");
       return;
     }
 
     setIsSubmitting(true);
 
     try {
-      await apiClient.post("/api/emails", {
+      const formattedDate = new Date(scheduledFor).toISOString();
+
+      await emailStore.addEmail({
         subject,
         body,
         recipients: combinedRecipients,
-        scheduledFor: new Date(scheduledFor).toISOString(),
+        scheduledFor: formattedDate,
         delayMs,
         hourlyLimit,
       });
