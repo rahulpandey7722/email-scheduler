@@ -63,6 +63,18 @@ export const emailController = {
   },
 
   /**
+   * Retrieves full email history across all statuses
+   */
+  async getHistory(req: Request, res: Response, next: NextFunction) {
+    try {
+      const emails = await emailService.getAllEmails(req.user!.id);
+      return res.json(emails);
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
    * Triggers queue recovery reconciliation for interrupted or queued emails after server restart/crash
    */
   async triggerRecovery(_req: Request, res: Response, next: NextFunction) {

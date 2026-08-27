@@ -78,6 +78,7 @@ function saveLocalStorageEmail(item: any): void {
     // Trigger instant SWR cache mutation for all active dashboard hooks
     mutate("/api/emails/scheduled");
     mutate("/api/emails/sent");
+    mutate("/api/emails/history");
   } catch (err) {
     console.warn("Failed to persist email in localStorage", err);
   }

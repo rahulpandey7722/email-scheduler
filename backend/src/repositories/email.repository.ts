@@ -27,6 +27,17 @@ export const emailRepository = {
   },
 
   /**
+   * Query complete email history for a specific user across all statuses
+   */
+  async findAllByUser(userId: string) {
+    return prisma.email.findMany({
+      where: { userId },
+      include: { recipients: true },
+      orderBy: { createdAt: "desc" },
+    });
+  },
+
+  /**
    * Fetch single Email by ID including recipients
    */
   async findById(id: string) {

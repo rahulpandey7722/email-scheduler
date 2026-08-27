@@ -4,20 +4,24 @@ import React, { useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { EmailTable } from "@/components/EmailTable";
+import { EmailHistoryTable } from "@/components/EmailHistoryTable";
 import { useScheduledEmails } from "@/hooks/useScheduledEmails";
 import { useSentEmails } from "@/hooks/useSentEmails";
-import { Plus, LogOut, Clock, CheckCircle2, Mail, RefreshCw } from "lucide-react";
+import { useAllEmails } from "@/hooks/useAllEmails";
+import { Plus, LogOut, Clock, CheckCircle2, Mail, RefreshCw, History } from "lucide-react";
 
 export default function DashboardPage() {
   const { data: session } = useSession();
-  const [activeTab, setActiveTab] = useState<"scheduled" | "sent">("scheduled");
+  const [activeTab, setActiveTab] = useState<"scheduled" | "sent" | "history">("scheduled");
 
   const scheduled = useScheduledEmails();
   const sent = useSentEmails();
+  const history = useAllEmails();
 
   const handleRefresh = () => {
     if (activeTab === "scheduled") scheduled.refresh();
-    else sent.refresh();
+    else if (activeTab === "sent") sent.refresh();
+    else history.refresh();
   };
 
   return (
@@ -77,11 +81,11 @@ export default function DashboardPage() {
       {/* Main Content Body */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         {/* Navigation Tabs and Refresh Button */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex space-x-2 bg-slate-200/60 p-1 rounded-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div className="flex space-x-1.5 bg-slate-200/60 p-1 rounded-xl overflow-x-auto">
             <button
               onClick={() => setActiveTab("scheduled")}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
                 activeTab === "scheduled"
                   ? "bg-white text-slate-900 shadow-sm"
                   : "text-slate-600 hover:text-slate-900"
@@ -98,7 +102,7 @@ export default function DashboardPage() {
 
             <button
               onClick={() => setActiveTab("sent")}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
                 activeTab === "sent"
                   ? "bg-white text-slate-900 shadow-sm"
                   : "text-slate-600 hover:text-slate-900"
@@ -112,19 +116,36 @@ export default function DashboardPage() {
                 </span>
               )}
             </button>
+
+            <button
+              onClick={() => setActiveTab("history")}
+              className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                activeTab === "history"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <History className="w-4 h-4" />
+              <span>All Mail History</span>
+              {history.allEmails && (
+                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-slate-900 text-white font-mono">
+                  {history.allEmails.length}
+                </span>
+              )}
+            </button>
           </div>
 
           <button
             onClick={handleRefresh}
-            className="p-2 text-slate-500 hover:text-slate-900 hover:bg-white rounded-xl border border-slate-200 transition-all shadow-sm"
+            className="p-2 text-slate-500 hover:text-slate-900 hover:bg-white rounded-xl border border-slate-200 transition-all shadow-sm self-end sm:self-auto"
             title="Refresh Table Data"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Dynamic Email Table Component */}
-        {activeTab === "scheduled" ? (
+        {/* Dynamic View Component */}
+        {activeTab === "scheduled" && (
           <EmailTable
             emails={scheduled.scheduledEmails}
             isLoading={scheduled.isLoading}
@@ -132,13 +153,23 @@ export default function DashboardPage() {
             emptyTitle="No scheduled emails queued"
             emptyMessage="Click 'Compose Email' above to schedule your first email delivery batch."
           />
-        ) : (
+        )}
+
+        {activeTab === "sent" && (
           <EmailTable
             emails={sent.sentEmails}
             isLoading={sent.isLoading}
             error={sent.error}
             emptyTitle="No delivered email history"
             emptyMessage="Emails that have been successfully dispatched by the worker will appear here."
+          />
+        )}
+
+        {activeTab === "history" && (
+          <EmailHistoryTable
+            emails={history.allEmails}
+            isLoading={history.isLoading}
+            error={history.error}
           />
         )}
       </main>

@@ -69,4 +69,11 @@ export const emailService = {
   async getSentEmails(userId: string) {
     return emailRepository.findByUserAndStatuses(userId, ["SENT"]);
   },
+
+  /**
+   * Retrieve complete history of all emails across all lifecycle states
+   */
+  async getAllEmails(userId: string) {
+    return emailRepository.findAllByUser(userId);
+  },
 };

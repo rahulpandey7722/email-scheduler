@@ -69,6 +69,11 @@ export const emailStore = {
     return inMemoryRecords;
   },
 
+  getAllHistory(): ScheduledEmailRecord[] {
+    checkAndProcessAutoDeliveries();
+    return inMemoryRecords;
+  },
+
   getScheduled(): ScheduledEmailRecord[] {
     checkAndProcessAutoDeliveries();
     return inMemoryRecords.filter(
@@ -145,27 +150,31 @@ export const emailStore = {
 
   async fetchFromBackend(): Promise<void> {
     try {
-      const [scheduledList, sentList] = await Promise.all([
+      const [scheduledList, sentList, historyList] = await Promise.all([
         apiClient.get<ScheduledEmailRecord[]>("/api/emails/scheduled"),
         apiClient.get<ScheduledEmailRecord[]>("/api/emails/sent"),
+        apiClient.get<ScheduledEmailRecord[]>("/api/emails/history"),
       ]);
 
-      if (Array.isArray(scheduledList) || Array.isArray(sentList)) {
-        const fetched = [...(scheduledList || []), ...(sentList || [])];
-        if (fetched.length > 0) {
-          const mergedMap = new Map<string, ScheduledEmailRecord>();
-          // Existing items first
-          inMemoryRecords.forEach((item) => mergedMap.set(item.id, item));
-          // Fetched backend items override
-          fetched.forEach((item) => mergedMap.set(item.id, item));
+      const fetched = [
+        ...(scheduledList || []),
+        ...(sentList || []),
+        ...(historyList || []),
+      ];
 
-          inMemoryRecords = Array.from(mergedMap.values()).sort(
-            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          );
-          checkAndProcessAutoDeliveries();
-          saveRecords(inMemoryRecords);
-          notifyListeners();
-        }
+      if (fetched.length > 0) {
+        const mergedMap = new Map<string, ScheduledEmailRecord>();
+        // Existing items first
+        inMemoryRecords.forEach((item) => mergedMap.set(item.id, item));
+        // Fetched backend items override
+        fetched.forEach((item) => mergedMap.set(item.id, item));
+
+        inMemoryRecords = Array.from(mergedMap.values()).sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        checkAndProcessAutoDeliveries();
+        saveRecords(inMemoryRecords);
+        notifyListeners();
       }
     } catch (err) {
       console.warn("Background fetch from backend failed", err);

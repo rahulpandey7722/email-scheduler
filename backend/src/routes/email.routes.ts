@@ -17,6 +17,9 @@ emailRouter.get("/scheduled", emailController.getScheduled);
 // GET /api/emails/sent - Retrieve delivered email history
 emailRouter.get("/sent", emailController.getSent);
 
+// GET /api/emails/history - Retrieve complete history of all emails across all statuses
+emailRouter.get("/history", emailController.getHistory);
+
 // POST /api/emails/recover - Re-enqueue stuck/queued emails after server crash or restart
 emailRouter.post("/recover", emailController.triggerRecovery);
 
