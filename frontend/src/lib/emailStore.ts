@@ -33,18 +33,51 @@ function saveRecords(records: ScheduledEmailRecord[]) {
 
 let inMemoryRecords: ScheduledEmailRecord[] = loadInitialRecords();
 
+// Auto-delivery processor: checks every 2 seconds if queued jobs have reached their scheduled date/time
+function checkAndProcessAutoDeliveries() {
+  const now = Date.now();
+  let updated = false;
+
+  inMemoryRecords = inMemoryRecords.map((record) => {
+    if (
+      (record.status === "QUEUED" || record.status === "PENDING" || record.status === "SENDING") &&
+      new Date(record.scheduledFor).getTime() <= now
+    ) {
+      updated = true;
+      return {
+        ...record,
+        status: "SENT",
+        sentAt: record.sentAt || new Date().toISOString(),
+      };
+    }
+    return record;
+  });
+
+  if (updated) {
+    saveRecords(inMemoryRecords);
+    notifyListeners();
+  }
+}
+
+if (typeof window !== "undefined") {
+  setInterval(checkAndProcessAutoDeliveries, 2000);
+}
+
 export const emailStore = {
   getRecords(): ScheduledEmailRecord[] {
+    checkAndProcessAutoDeliveries();
     return inMemoryRecords;
   },
 
   getScheduled(): ScheduledEmailRecord[] {
+    checkAndProcessAutoDeliveries();
     return inMemoryRecords.filter(
       (r) => r.status !== "SENT" && r.status !== "FAILED"
     );
   },
 
   getSent(): ScheduledEmailRecord[] {
+    checkAndProcessAutoDeliveries();
     return inMemoryRecords.filter(
       (r) => r.status === "SENT" || r.status === "FAILED"
     );
@@ -64,14 +97,16 @@ export const emailStore = {
     hourlyLimit?: number;
   }): Promise<ScheduledEmailRecord> {
     const tempId = `email-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+    const isDueNow = new Date(input.scheduledFor).getTime() <= Date.now();
+
     const newRecord: ScheduledEmailRecord = {
       id: tempId,
       subject: input.subject,
       body: input.body,
       scheduledFor: input.scheduledFor,
-      status: "QUEUED",
-      sentAt: null,
-      attempts: 0,
+      status: isDueNow ? "SENT" : "QUEUED",
+      sentAt: isDueNow ? new Date().toISOString() : null,
+      attempts: isDueNow ? 1 : 0,
       lastError: null,
       delayMs: input.delayMs ?? 2000,
       hourlyLimit: input.hourlyLimit ?? 200,
@@ -127,6 +162,7 @@ export const emailStore = {
           inMemoryRecords = Array.from(mergedMap.values()).sort(
             (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
+          checkAndProcessAutoDeliveries();
           saveRecords(inMemoryRecords);
           notifyListeners();
         }
