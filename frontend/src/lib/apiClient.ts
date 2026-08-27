@@ -105,11 +105,11 @@ export const apiClient = {
 
         if (endpointPath.includes("/scheduled")) {
           return combined.filter(
-            (e) => e.status !== "SENT" && new Date(e.scheduledFor).getTime() >= Date.now() - 60000
+            (e) => e.status !== "SENT" && e.status !== "FAILED"
           ) as unknown as T;
         } else if (endpointPath.includes("/sent")) {
           return combined.filter(
-            (e) => e.status === "SENT" || new Date(e.scheduledFor).getTime() < Date.now() - 60000
+            (e) => e.status === "SENT" || e.status === "FAILED"
           ) as unknown as T;
         }
 
@@ -121,16 +121,15 @@ export const apiClient = {
 
     // Fallback to localStorage when backend is offline/unreachable
     const localItems = getLocalStorageEmails();
-    const now = Date.now();
 
     if (endpointPath.includes("/scheduled")) {
       const scheduledList = localItems.filter(
-        (e) => e.status !== "SENT" && new Date(e.scheduledFor).getTime() >= now - 60000
+        (e) => e.status !== "SENT" && e.status !== "FAILED"
       );
       return scheduledList as unknown as T;
     } else if (endpointPath.includes("/sent")) {
       const sentList = localItems.filter(
-        (e) => e.status === "SENT" || new Date(e.scheduledFor).getTime() < now - 60000
+        (e) => e.status === "SENT" || e.status === "FAILED"
       );
       return sentList as unknown as T;
     }
