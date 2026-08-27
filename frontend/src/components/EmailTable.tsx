@@ -19,7 +19,7 @@ export function EmailTable({
   emptyTitle = "No emails found",
   emptyMessage = "There are no emails matching this view filter.",
 }: EmailTableProps) {
-  if (isLoading) return <LoadingSkeleton />;
+  if (isLoading && !emails) return <LoadingSkeleton />;
 
   if (error) {
     return (

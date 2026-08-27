@@ -9,12 +9,13 @@ export function useSentEmails() {
     {
       refreshInterval: 15000,
       revalidateOnFocus: true,
+      fallbackData: [],
     }
   );
 
   return {
-    sentEmails: data,
-    isLoading,
+    sentEmails: data ?? [],
+    isLoading: isLoading && data === undefined,
     error,
     refresh: mutate,
   };

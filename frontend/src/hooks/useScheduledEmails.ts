@@ -7,14 +7,15 @@ export function useScheduledEmails() {
     "/api/emails/scheduled",
     (path: string) => apiClient.get<ScheduledEmailRecord[]>(path),
     {
-      refreshInterval: 10000, // Poll every 10 seconds for dashboard status updates
+      refreshInterval: 10000,
       revalidateOnFocus: true,
+      fallbackData: [],
     }
   );
 
   return {
-    scheduledEmails: data,
-    isLoading,
+    scheduledEmails: data ?? [],
+    isLoading: isLoading && data === undefined,
     error,
     refresh: mutate,
   };
